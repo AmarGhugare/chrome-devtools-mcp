@@ -29,6 +29,7 @@ ts_library("tests") {
     "browser.test.ts",
     "cli-imports.test.ts",
     "cli.test.ts",
+    "downloads.test.ts",
     "collectors/PageCollector.test.ts",
     "collectors/ServiceWorkerCollector.test.ts",
     "config/ConfigLocator.test.ts",

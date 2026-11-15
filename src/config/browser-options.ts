@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import path from 'node:path';
+
+import type {DownloadBehavior, DownloadPolicy} from '../third_party/index.js';
+
 import type {McpOptionsFor} from './category-options.js';
 
 export interface BrowserArguments {
@@ -15,6 +19,8 @@ export interface BrowserArguments {
   executablePath?: string;
   isolated: boolean;
   userDataDir?: string;
+  downloadBehavior?: DownloadPolicy;
+  downloadPath?: string;
   channel?: 'canary' | 'dev' | 'beta' | 'stable';
   proxyServer?: string;
   chromeArg?: string[];
@@ -125,6 +131,28 @@ export const browserOptions: BrowserOptions = {
     description:
       'Path to the user data directory for Chrome. Default is $HOME/.cache/chrome-devtools-mcp/chrome-profile$CHANNEL_SUFFIX_IF_NON_STABLE',
   },
+  downloadBehavior: {
+    type: 'string',
+    choices: ['allow', 'allowAndName', 'deny', 'default'],
+    description:
+      'Set the download policy for the default browser context and new named isolated contexts. allow and allowAndName require --download-path. allowAndName uses download GUIDs as filenames. Omit to preserve browser defaults. Changing this option requires a restart.',
+  },
+  downloadPath: {
+    type: 'string',
+    description:
+      'Absolute download directory on the Chrome host. Requires --download-behavior=allow or allowAndName. This path is controlled at startup and is not changed by tool calls.',
+    coerce: (filePath: string | undefined): string | undefined => {
+      if (
+        filePath !== undefined &&
+        !(path.posix.isAbsolute(filePath) || path.win32.isAbsolute(filePath))
+      ) {
+        throw new Error(
+          'downloadPath must be an absolute path on the Chrome host.',
+        );
+      }
+      return filePath;
+    },
+  },
   channel: {
     type: 'string',
     description:
@@ -152,4 +180,22 @@ export const browserOptions: BrowserOptions = {
 
 export function getBrowserOptions(): BrowserOptions {
   return browserOptions;
+}
+
+export function getDownloadBehavior(
+  args: Pick<BrowserArguments, 'downloadBehavior' | 'downloadPath'>,
+): DownloadBehavior | undefined {
+  const {downloadBehavior: policy, downloadPath} = args;
+  if (policy === 'allow' || policy === 'allowAndName') {
+    if (downloadPath === undefined) {
+      throw new Error(`downloadBehavior=${policy} requires --download-path.`);
+    }
+    return {policy, downloadPath};
+  }
+  if (downloadPath !== undefined) {
+    throw new Error(
+      'downloadPath requires --download-behavior=allow or allowAndName.',
+    );
+  }
+  return policy === undefined ? undefined : {policy};
 }

@@ -23,6 +23,7 @@ import {TaskRunner} from '../src/utils/TaskRunner.js';
 import {TextSnapshot} from '../src/TextSnapshot.js';
 import {
   type Browser,
+  type BrowserContext,
   type HTTPResponse,
   Locator,
   ScreenRecorder,
@@ -41,6 +42,7 @@ import type {ServerConfig} from '../src/config/ServerConfig.js';
 import {
   createMockMcpWorker,
   createMockPuppeteerBrowser,
+  createMockPuppeteerBrowserContext,
   createMockPuppeteerPage,
   createMockPuppeteerTarget,
   createMockServerConfig,
@@ -122,6 +124,84 @@ describe('McpContext', () => {
       Locator,
     );
   }
+
+  describe('download configuration', () => {
+    it('configures new isolated contexts once before creating pages', async () => {
+      const browser = createMockPuppeteerBrowser();
+      const isolated = createMockPuppeteerBrowserContext();
+      browser.createBrowserContext.resolves(isolated);
+      const first = createPageTarget();
+      const second = createPageTarget();
+      isolated.newPage.onFirstCall().resolves(first.page);
+      isolated.newPage.onSecondCall().resolves(second.page);
+      const context = await createMockContext({
+        browser,
+        config: createMockServerConfig({
+          downloadBehavior: 'allowAndName',
+          downloadPath: '/downloads',
+        }),
+      });
+      browser.targets.returns([
+        ...browser.targets(),
+        first.target,
+        second.target,
+      ]);
+      try {
+        await context.newPage(true, 'downloads');
+        await context.newPage(false, 'downloads');
+
+        sinon.assert.calledOnceWithExactly(browser.createBrowserContext, {
+          downloadBehavior: {
+            policy: 'allowAndName',
+            downloadPath: '/downloads',
+          },
+        });
+        sinon.assert.calledWithExactly(isolated.newPage.firstCall, {
+          background: true,
+        });
+        sinon.assert.calledWithExactly(isolated.newPage.secondCall, {
+          background: false,
+        });
+      } finally {
+        context.dispose();
+      }
+    });
+
+    it('preserves default isolated-context creation when downloads are not configured', async () => {
+      const browser = createMockPuppeteerBrowser();
+      const isolated = createMockPuppeteerBrowserContext();
+      browser.createBrowserContext.resolves(isolated);
+      const {page, target} = createPageTarget();
+      isolated.newPage.resolves(page);
+      const context = await createMockContext({browser});
+      browser.targets.returns([...browser.targets(), target]);
+      try {
+        await context.newPage(false, 'default');
+        sinon.assert.calledOnceWithExactly(browser.createBrowserContext);
+      } finally {
+        context.dispose();
+      }
+    });
+
+    it('closes an isolated context that resolves after its owner was disposed', async () => {
+      const browser = createMockPuppeteerBrowser();
+      const isolated = createMockPuppeteerBrowserContext();
+      const pending = Promise.withResolvers<BrowserContext>();
+      browser.createBrowserContext.returns(pending.promise);
+      const context = await createMockContext({
+        browser,
+        config: createMockServerConfig({downloadBehavior: 'deny'}),
+      });
+
+      const creation = context.newPage(false, 'downloads');
+      context.dispose();
+      pending.resolve(isolated);
+
+      await assert.rejects(creation, /Browser was replaced/);
+      sinon.assert.calledOnceWithExactly(isolated.close);
+      sinon.assert.notCalled(isolated.newPage);
+    });
+  });
 
   describe('getServiceWorkerConsoleData', () => {
     it('resolves the service worker ID to the collector extension ID', async () => {

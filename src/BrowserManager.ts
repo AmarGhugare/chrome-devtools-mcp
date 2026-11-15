@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type {ReadonlyServerConfig} from './config/ServerConfig.js';
+import {getDownloadBehavior} from './config/browser-options.js';
 import {
   Mutex,
   puppeteer,
@@ -312,6 +313,7 @@ export class BrowserManager {
         enableExtensions,
         blocklist,
         allowlist,
+        downloadBehavior: getDownloadBehavior(this.#config.resolved),
         logger: puppeteerLogger,
         // The entry points own signal handling and call close(), which
         // closes the browser gracefully. Puppeteer's handlers would SIGKILL
@@ -391,6 +393,7 @@ export class BrowserManager {
       handleDevToolsAsPage: true,
       blocklist,
       allowlist,
+      downloadBehavior: getDownloadBehavior(this.#config.resolved),
       logger: puppeteerLogger,
       // Detects a transport that died without a close frame (e.g. an adb
       // port-forward torn down mid-call). Puppeteer pings the socket

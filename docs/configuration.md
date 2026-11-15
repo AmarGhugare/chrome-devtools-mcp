@@ -104,6 +104,15 @@ The Chrome DevTools MCP server supports the following configuration option:
   Path to the user data directory for Chrome. Default is $HOME/.cache/chrome-devtools-mcp/chrome-profile$CHANNEL_SUFFIX_IF_NON_STABLE
   - **Type:** string
 
+- **`--downloadBehavior`/ `--download-behavior`**
+  Set the download policy for the default browser context and new named isolated contexts. allow and allowAndName require --download-path. allowAndName uses download GUIDs as filenames. Omit to preserve browser defaults. Changing this option requires a restart.
+  - **Type:** string
+  - **Choices:** `allow`, `allowAndName`, `deny`, `default`
+
+- **`--downloadPath`/ `--download-path`**
+  Absolute download directory on the Chrome host. Requires --download-behavior=allow or allowAndName. This path is controlled at startup and is not changed by tool calls.
+  - **Type:** string
+
 - **`--channel`**
   Specify a different Chrome channel that should be used. The default is the stable channel version.
   - **Type:** string

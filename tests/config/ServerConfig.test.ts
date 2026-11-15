@@ -32,6 +32,100 @@ describe('ServerConfig', () => {
     ).parseConfig();
   }
 
+  describe('download configuration', () => {
+    it('accepts the shared startup options in MCP and CLI', () => {
+      for (const argv of [[], ['--viaCli']]) {
+        const config = parseConfig([
+          ...argv,
+          '--download-behavior=allow',
+          '--download-path=/downloads',
+        ]);
+        assert.strictEqual(config.resolved.downloadBehavior, 'allow');
+        assert.strictEqual(config.resolved.downloadPath, '/downloads');
+      }
+    });
+
+    for (const argv of [
+      ['--download-behavior=allow'],
+      ['--download-behavior=allowAndName'],
+      ['--download-path=/downloads'],
+      ['--download-behavior=deny', '--download-path=/downloads'],
+      ['--download-behavior=default', '--download-path=/downloads'],
+    ]) {
+      it(`rejects invalid download options ${argv.join(' ')}`, () => {
+        assert.throws(() => parseConfig(argv), /download/);
+      });
+    }
+
+    it('rejects relative and blank paths', () => {
+      for (const downloadPath of ['downloads', '', '  ', 'C:downloads']) {
+        assert.throws(
+          () =>
+            parseConfig([
+              '--download-behavior=allow',
+              `--download-path=${downloadPath}`,
+            ]),
+          /downloadPath must be an absolute path/,
+        );
+      }
+    });
+
+    it('accepts absolute Chrome host paths independently of the server OS', () => {
+      for (const downloadPath of [
+        '/downloads',
+        'C:\\downloads',
+        '\\\\host\\downloads',
+      ]) {
+        assert.strictEqual(
+          parseConfig([
+            '--download-behavior=allow',
+            `--download-path=${downloadPath}`,
+          ]).resolved.downloadPath,
+          downloadPath,
+        );
+      }
+    });
+
+    it('requires a restart when download configuration changes', () => {
+      const initial = parseConfig(['--download-behavior=deny']);
+      const next = parseConfig([
+        '--download-behavior=allow',
+        '--download-path=/downloads',
+      ]);
+      assert.deepStrictEqual(initial.getRestartRequiredChanges(next), [
+        'downloadBehavior',
+        'downloadPath',
+      ]);
+      assert.strictEqual(
+        initial.mergeReloadable(next).resolved.downloadBehavior,
+        'deny',
+      );
+      assert.strictEqual(
+        initial.mergeReloadable(next).resolved.downloadPath,
+        undefined,
+      );
+    });
+
+    it('validates download options from configuration files before starting Chrome', () => {
+      using file = createTempFile(
+        JSON.stringify({
+          downloadBehavior: 'allow',
+          downloadPath: '/downloads',
+        }),
+        'downloads.config.json',
+      );
+      const config = parseConfig([`--config=${file.path}`]);
+      assert.strictEqual(config.resolved.downloadBehavior, 'allow');
+      assert.strictEqual(config.resolved.downloadPath, '/downloads');
+
+      fs.writeFileSync(file.path, JSON.stringify({downloadBehavior: 'allow'}));
+      assert.throws(
+        () => parseConfig([`--config=${file.path}`]),
+        /requires --download-path/,
+      );
+    });
+  });
+
   describe('validateConflicts', () => {
     it('accepts a single argument from a conflict group', () => {
       ServerConfig.validateConflicts({browserUrl: 'http://localhost:9222'});

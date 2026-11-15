@@ -498,5 +498,24 @@
   {
     "name": "category_network_mocks",
     "flagType": "boolean"
+  },
+  {
+    "name": "download_behavior_present",
+    "flagType": "boolean"
+  },
+  {
+    "name": "download_behavior",
+    "flagType": "enum",
+    "choices": [
+      "DOWNLOAD_BEHAVIOR_UNSPECIFIED",
+      "DOWNLOAD_BEHAVIOR_ALLOW",
+      "DOWNLOAD_BEHAVIOR_ALLOWANDNAME",
+      "DOWNLOAD_BEHAVIOR_DENY",
+      "DOWNLOAD_BEHAVIOR_DEFAULT"
+    ]
+  },
+  {
+    "name": "download_path_present",
+    "flagType": "boolean"
   }
 ]

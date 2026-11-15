@@ -73,7 +73,7 @@ import {
   WebMCPTool,
   type Browser,
   type ResourceType,
-  type BrowserContext,
+  BrowserContext,
   type ConsoleMessageLocation,
   type ConsoleMessageType,
   type Extension,
@@ -215,6 +215,14 @@ export function createMockPuppeteerBrowser(): sinon.SinonStubbedInstance<Browser
   stubEventEmitter(browser);
 
   return browser;
+}
+
+export function createMockPuppeteerBrowserContext(): sinon.SinonStubbedInstance<BrowserContext> {
+  const context = sinon.createStubInstance(BrowserContext);
+  // Abstract methods have no runtime prototype implementation to stub.
+  sinon.define(context, 'newPage', sinon.stub());
+  sinon.define(context, 'close', sinon.stub().resolves());
+  return context;
 }
 
 export class MockCDPSession extends CDPSession {

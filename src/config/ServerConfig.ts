@@ -8,6 +8,8 @@ import {isDeepStrictEqual} from 'node:util';
 
 import {yargs} from '../third_party/cli.js';
 
+import {getDownloadBehavior} from './browser-options.js';
+
 import {
   CONFLICTING_ARGS,
   DEFAULT_FILESYSTEM_ROOT,
@@ -235,6 +237,7 @@ export class ServerConfig implements ReadonlyServerConfig {
       resolvedArgs.categoryExperimentalThirdParty = true;
     }
 
+    getDownloadBehavior(resolvedArgs);
     return resolvedArgs;
   }
 

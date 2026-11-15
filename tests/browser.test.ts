@@ -12,7 +12,11 @@ import {describe, it} from 'node:test';
 import sinon from 'sinon';
 
 import {BrowserManager} from '../src/BrowserManager.js';
-import {puppeteer, type Browser} from '../src/third_party/index.js';
+import {
+  puppeteer,
+  type Browser,
+  type DownloadBehavior,
+} from '../src/third_party/index.js';
 
 import {
   createMockPuppeteerBrowser,
@@ -63,6 +67,41 @@ describe('browser', () => {
   });
 
   describe('BrowserManager', () => {
+    for (const mode of ['launch', 'connect']) {
+      for (const download of [
+        {policy: 'allow', downloadPath: '/downloads'},
+        {policy: 'allowAndName', downloadPath: '/downloads'},
+        {policy: 'deny'},
+        {policy: 'default'},
+      ] satisfies DownloadBehavior[]) {
+        it(`configures ${download.policy} downloads once for the default context after ${mode}`, async () => {
+          const browser = createMockPuppeteerBrowser();
+          const operation = sinon
+            .stub(puppeteer, mode === 'launch' ? 'launch' : 'connect')
+            .resolves(browser);
+          const manager = new BrowserManager(
+            createMockServerConfig({
+              isolated: true,
+              ...(mode === 'connect'
+                ? {browserUrl: 'http://localhost:9222'}
+                : {}),
+              downloadBehavior: download.policy,
+              downloadPath: download.downloadPath,
+            }),
+          );
+
+          await manager.ensureBrowser();
+          await manager.ensureBrowser();
+
+          sinon.assert.calledOnce(operation);
+          assert.deepStrictEqual(
+            operation.firstCall.args[0]?.downloadBehavior,
+            download,
+          );
+        });
+      }
+    }
+
     it('preserves WebSocket connection credentials for Puppeteer while redacting logs', async () => {
       const pptrBrowser = createMockPuppeteerBrowser();
       const connectStub = sinon
@@ -110,6 +149,10 @@ describe('browser', () => {
 
       assert.strictEqual(browser1, pptrBrowser);
       assert.strictEqual(browser2, pptrBrowser);
+      assert.strictEqual(
+        launchStub.firstCall.args[0]?.downloadBehavior,
+        undefined,
+      );
       sinon.assert.calledOnce(launchStub);
       sinon.assert.notCalled(connectStub);
       sinon.assert.calledWithMatch(launchStub, {

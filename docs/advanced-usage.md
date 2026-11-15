@@ -40,6 +40,51 @@ runs with the same channel. Only one browser can use it at a time. Set the `isol
 option to `true` to use a temporary user data directory instead which will be cleared
 automatically after the browser is closed.
 
+## Download behavior
+
+Configure downloads at startup with `--download-behavior` and
+`--download-path`. These options work in MCP and CLI. For example:
+
+```json
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "chrome-devtools-mcp@latest",
+        "--download-behavior=allow",
+        "--download-path=/absolute/path/to/downloads"
+      ]
+    }
+  }
+}
+```
+
+The policy follows
+[Puppeteer's download behavior](https://pptr.dev/api/puppeteer.downloadbehavior):
+
+- `allow`: save downloads in the configured directory without a save dialog.
+- `allowAndName`: save downloads using their download GUIDs as filenames.
+- `deny`: block downloads.
+- `default`: use Chrome's default download handling.
+
+`allow` and `allowAndName` require `--download-path`. The other policies must
+not include a path. Omit both options to leave download behavior unchanged.
+Changing either option requires restarting the server.
+
+The directory must be an absolute path **on the machine running Chrome**.
+When connecting to remote Chrome, downloaded files are saved on that host;
+these options do not transfer them to the MCP server. Choose a directory you
+trust for downloaded files. Tool calls cannot change this startup setting.
+
+The policy applies to the default browser context and new named isolated
+contexts created by this server. Existing non-default contexts are unchanged.
+The setting applies to every page in an affected context. To explicitly
+restore Chrome's default handling, reconnect with
+`--download-behavior=default`. These options do not edit Chrome's profile
+preferences, read back its current download directory or prompt setting,
+or preserve overrides set by other debugging clients.
+
 ## Custom browser executable
 
 By default, `chrome-devtools-mcp` launches Chrome installed in the standard

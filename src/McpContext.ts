@@ -43,6 +43,7 @@ import {
   type DevTools,
 } from './third_party/index.js';
 import type {ParsedArguments} from './config/mcp-options.js';
+import {getDownloadBehavior} from './config/browser-options.js';
 import type {ReadonlyServerConfig} from './config/ServerConfig.js';
 import {ToolCategory} from './tools/categories.js';
 import {
@@ -594,7 +595,17 @@ export class McpContext implements Context, BrowserlessContext {
     if (isolatedContextName !== undefined) {
       let ctx = this.#isolatedContexts.get(isolatedContextName);
       if (!ctx) {
-        ctx = await this.browser.createBrowserContext();
+        const browser = this.browser;
+        const downloadBehavior = getDownloadBehavior(this.#config.resolved);
+        ctx = downloadBehavior
+          ? await browser.createBrowserContext({downloadBehavior})
+          : await browser.createBrowserContext();
+        if (browser !== this.#browser) {
+          await ctx.close();
+          throw new Error(
+            'Browser was replaced while creating an isolated context.',
+          );
+        }
         this.#isolatedContexts.set(isolatedContextName, ctx);
       }
       page = await ctx.newPage({background});
